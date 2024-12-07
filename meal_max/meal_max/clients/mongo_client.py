@@ -15,5 +15,5 @@ MONGO_PORT = int(os.environ.get('MONGO_PORT', 27017))
 
 logger.info("Connecting to MongoDB at %s:%d", MONGO_HOST, MONGO_PORT)
 mongo_client = MongoClient(host=MONGO_HOST, port=MONGO_PORT)
-db = mongo_client['meal_max']
+db = mongo_client['stock_trading']
 sessions_collection = db['sessions']
