@@ -6,7 +6,7 @@ from werkzeug.exceptions import BadRequest, Unauthorized
 from config import ProductionConfig
 from meal_max.db import db
 from meal_max.models.battle_model import BattleModel
-from meal_max.models.kitchen_model import Meals
+from meal_max.models.kitchen_model import Stock
 from meal_max.models.mongo_session_model import login_user, logout_user
 from meal_max.models.user_model import Users
 
@@ -206,285 +206,166 @@ def create_app(config_class=ProductionConfig):
             return jsonify({"error": "An unexpected error occurred."}), 500
 
 
-    ##########################################################
+    ####################################################
     #
-    # Meals
+    # Stock Management
     #
-    ##########################################################
+    ####################################################
 
-
-    @app.route('/api/create-meal', methods=['POST'])
-    def add_meal() -> Response:
+    @app.route('/api/add-stock', methods=['POST'])
+    def add_stock():
         """
-        Route to add a new meal to the database.
+        Add a new stock to the portfolio.
 
         Expected JSON Input:
-            - meal (str): The name of the combatant (meal).
-            - cuisine (str): The cuisine type of the combatant (e.g., Italian, Chinese).
-            - price (float): The price of the combatant.
-            - difficulty (str): The preparation difficulty (HIGH, MED, LOW).
+            - symbol (str): Stock ticker symbol.
+            - name (str): Stock company name.
+            - quantity (int): Number of shares purchased.
+            - buy_price (float): Price per share at purchase.
 
         Returns:
-            JSON response indicating the success of the combatant addition.
-        Raises:
-            400 error if input validation fails.
-            500 error if there is an issue adding the combatant to the database.
+            JSON response with status and added stock details.
         """
-        app.logger.info('Creating new meal')
+        data = request.get_json()
         try:
-            # Get the JSON data from the request
-            data = request.get_json()
+            symbol = data['symbol']
+            name = data['name']
+            quantity = data['quantity']
+            buy_price = data['buy_price']
 
-            # Extract and validate required fields
-            meal = data.get('meal')
-            cuisine = data.get('cuisine')
-            price = data.get('price')
-            difficulty = data.get('difficulty')
+            if not symbol or not name or quantity <= 0 or buy_price <= 0:
+                raise BadRequest("Invalid input. Ensure all fields are valid and positive.")
 
-            if not meal or not cuisine or price is None or difficulty not in ['HIGH', 'MED', 'LOW']:
-                raise BadRequest("Invalid input. All fields are required with valid values.")
-
-            # Check that price is a float and has at most two decimal places
-            try:
-                price = float(price)
-                if round(price, 2) != price:
-                    raise ValueError("Price has more than two decimal places")
-            except ValueError as e:
-                return make_response(jsonify({'error': 'Price must be a valid float with at most two decimal places'}), 400)
-
-            # Call the Meals function to add the combatant to the database
-            app.logger.info('Adding meal: %s, %s, %.2f, %s', meal, cuisine, price, difficulty)
-            Meals.create_meal(meal, cuisine, price, difficulty)
-
-            app.logger.info("Combatant added: %s", meal)
-            return make_response(jsonify({'status': 'combatant added', 'combatant': meal}), 201)
+            Stock.add_stock(symbol, name, quantity, buy_price)
+            return jsonify({'status': 'success', 'message': 'Stock added successfully.'}), 201
         except Exception as e:
-            app.logger.error("Failed to add combatant: %s", str(e))
-            return make_response(jsonify({'error': str(e)}), 500)
+            return jsonify({'error': str(e)}), 400
 
-
-    @app.route('/api/delete-meal/<int:meal_id>', methods=['DELETE'])
-    def delete_meal(meal_id: int) -> Response:
+    @app.route('/api/update-stock/<int:stock_id>', methods=['PUT'])
+    def update_stock(stock_id):
         """
-        Route to delete a meal by its ID. This performs a soft delete by marking it as deleted.
+        Update stock details.
+
+        Expected JSON Input:
+            - Any updatable fields (e.g., quantity, current_price).
+
+        Returns:
+            JSON response indicating success or failure.
+        """
+        data = request.get_json()
+        try:
+            Stock.update_stock(stock_id, **data)
+            return jsonify({'status': 'success', 'message': 'Stock updated successfully.'}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+
+    @app.route('/api/delete-stock/<int:stock_id>', methods=['DELETE'])
+    def delete_stock(stock_id):
+        """
+        Delete a stock from the portfolio.
 
         Path Parameter:
-            - meal_id (int): The ID of the meal to delete.
+            - stock_id (int): ID of the stock to delete.
 
         Returns:
-            JSON response indicating success of the operation or error message.
+            JSON response indicating success or failure.
         """
         try:
-            app.logger.info(f"Deleting meal by ID: {meal_id}")
-
-            Meals.delete_meal(meal_id)
-            return make_response(jsonify({'status': 'meal deleted'}), 200)
+            Stock.delete_stock(stock_id)
+            return jsonify({'status': 'success', 'message': 'Stock deleted successfully.'}), 200
         except Exception as e:
-            app.logger.error(f"Error deleting meal: {e}")
-            return make_response(jsonify({'error': str(e)}), 500)
+            return jsonify({'error': str(e)}), 400
 
-
-    @app.route('/api/get-meal-by-id/<int:meal_id>', methods=['GET'])
-    def get_meal_by_id(meal_id: int) -> Response:
+    @app.route('/api/get-stock/<string:symbol>', methods=['GET'])
+    def get_stock(symbol):
         """
-        Route to get a meal by its ID.
+        Retrieve stock details by symbol.
 
         Path Parameter:
-            - meal_id (int): The ID of the meal.
+            - symbol (str): The ticker symbol of the stock.
 
         Returns:
-            JSON response with the meal details or error message.
+            JSON response with stock details or error.
         """
         try:
-            app.logger.info(f"Retrieving meal by ID: {meal_id}")
-
-            meal = Meals.get_meal_by_id(meal_id)
-            return make_response(jsonify({'status': 'success', 'meal': meal}), 200)
+            stock = Stock.get_stock_by_symbol(symbol)
+            return jsonify({'status': 'success', 'stock': stock}), 200
         except Exception as e:
-            app.logger.error(f"Error retrieving meal by ID: {e}")
-            return make_response(jsonify({'error': str(e)}), 500)
+            return jsonify({'error': str(e)}), 404
 
+    ####################################################
+    #
+    # Portfolio Management
+    #
+    ####################################################
 
-    @app.route('/api/get-meal-by-name/<string:meal_name>', methods=['GET'])
-    def get_meal_by_name(meal_name: str) -> Response:
+    @app.route('/api/portfolio', methods=['GET'])
+    def get_portfolio():
         """
-        Route to get a meal by its name.
+        Get the portfolio details, including total value.
+
+        Returns:
+            JSON response with portfolio value and stocks.
+        """
+        try:
+            stocks = Stock.query.all()
+            total_value = Stock.get_portfolio_value()
+            portfolio = [{'symbol': s.symbol, 'name': s.name, 'quantity': s.quantity, 'current_price': s.current_price}
+                         for s in stocks]
+            return jsonify({'status': 'success', 'portfolio': portfolio, 'total_value': total_value}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/portfolio-leaderboard', methods=['GET'])
+    def get_leaderboard():
+        """
+        Retrieve the leaderboard of stocks.
+
+        Query Parameter:
+            - sort_by (str): Sorting criteria ('value' or 'quantity').
+
+        Returns:
+            JSON response with the leaderboard.
+        """
+        sort_by = request.args.get('sort_by', 'value')
+        try:
+            leaderboard = Stock.get_leaderboard(sort_by=sort_by)
+            return jsonify({'status': 'success', 'leaderboard': leaderboard}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+
+    ####################################################
+    #
+    # Alpha Vantage API Integration
+    #
+    ####################################################
+
+    @app.route('/api/fetch-stock/<string:symbol>', methods=['GET'])
+    def fetch_stock(symbol):
+        """
+        Fetch live stock data from the Alpha Vantage API.
 
         Path Parameter:
-            - meal_name (str): The name of the meal.
+            - symbol (str): The ticker symbol of the stock.
 
         Returns:
-            JSON response with the meal details or error message.
+            JSON response with live stock data.
         """
-        try:
-            app.logger.info(f"Retrieving meal by name: {meal_name}")
+        # Placeholder for API integration
+        # Replace this with a call to Alpha Vantage API
+        return jsonify({'status': 'success', 'data': f'Live data for {symbol} (mocked).'}), 200
 
-            if not meal_name:
-                return make_response(jsonify({'error': 'Meal name is required'}), 400)
-
-            meal = Meals.get_meal_by_name(meal_name)
-            return make_response(jsonify({'status': 'success', 'meal': meal}), 200)
-        except Exception as e:
-            app.logger.error(f"Error retrieving meal by name: {e}")
-            return make_response(jsonify({'error': str(e)}), 500)
-
-
-    @app.route('/api/init-db', methods=['POST'])
-    def init_db():
+    @app.route('/api/update-prices', methods=['POST'])
+    def update_prices():
         """
-        Initialize or recreate database tables.
-
-        This route initializes the database tables defined in the SQLAlchemy models.
-        If the tables already exist, they are dropped and recreated to ensure a clean
-        slate. Use this with caution as all existing data will be deleted.
+        Update the current prices for all stocks in the database.
 
         Returns:
-            Response: A JSON response indicating the success or failure of the operation.
-
-        Logs:
-            Logs the status of the database initialization process.
+            JSON response indicating success or failure.
         """
-        try:
-            with app.app_context():
-                app.logger.info("Dropping all existing tables.")
-                db.drop_all()  # Drop all existing tables
-                app.logger.info("Creating all tables from models.")
-                db.create_all()  # Recreate all tables
-            app.logger.info("Database initialized successfully.")
-            return jsonify({"status": "success", "message": "Database initialized successfully."}), 200
-        except Exception as e:
-            app.logger.error("Failed to initialize database: %s", str(e))
-            return jsonify({"status": "error", "message": "Failed to initialize database."}), 500
-
-    ############################################################
-    #
-    # Battle
-    #
-    ############################################################
-
-
-    @app.route('/api/battle', methods=['GET'])
-    def battle() -> Response:
-        """
-        Route to initiate a battle between the two currently prepared meals.
-
-        Returns:
-            JSON response indicating the result of the battle and the winner.
-        Raises:
-            500 error if there is an issue during the battle.
-        """
-        try:
-            app.logger.info('Two meals enter, one meal leaves!')
-
-            winner = battle_model.battle()
-
-            return make_response(jsonify({'status': 'battle complete', 'winner': winner}), 200)
-        except Exception as e:
-            app.logger.error(f"Battle error: {e}")
-            return make_response(jsonify({'error': str(e)}), 500)
-
-    @app.route('/api/clear-combatants', methods=['POST'])
-    def clear_combatants() -> Response:
-        """
-        Route to clear the list of combatants for the battle.
-
-        Returns:
-            JSON response indicating success of the operation.
-        Raises:
-            500 error if there is an issue clearing combatants.
-        """
-        try:
-            app.logger.info('Clearing all combatants...')
-            battle_model.clear_combatants()
-            app.logger.info('Combatants cleared.')
-            return make_response(jsonify({'status': 'combatants cleared'}), 200)
-        except Exception as e:
-            app.logger.error("Failed to clear combatants: %s", str(e))
-            return make_response(jsonify({'error': str(e)}), 500)
-
-    @app.route('/api/get-combatants', methods=['GET'])
-    def get_combatants() -> Response:
-        """
-        Route to get the list of combatants for the battle.
-
-        Returns:
-            JSON response with the list of combatants.
-        """
-        try:
-            app.logger.info('Getting combatants...')
-            combatants = battle_model.get_combatants()
-            return make_response(jsonify({'status': 'success', 'combatants': combatants}), 200)
-        except Exception as e:
-            app.logger.error("Failed to get combatants: %s", str(e))
-            return make_response(jsonify({'error': str(e)}), 500)
-
-    @app.route('/api/prep-combatant', methods=['POST'])
-    def prep_combatant() -> Response:
-        """
-        Route to prepare a prep a meal making it a combatant for a battle.
-
-        Parameters:
-            - meal (str): The name of the meal
-
-        Returns:
-            JSON response indicating the success of combatant preparation.
-        Raises:
-            500 error if there is an issue preparing combatants.
-        """
-        try:
-            data = request.json
-            if not data or 'meal' not in data:
-                return make_response(jsonify({'error': 'Meal name is required'}), 400)
-            meal = data.get('meal')
-            app.logger.info("Preparing combatant: %s", meal)
-
-            if not meal:
-                raise BadRequest('You must name a combatant')
-
-            try:
-                meal = Meals.get_meal_by_name(meal)
-                battle_model.prep_combatant(meal)
-                combatants = battle_model.get_combatants()
-            except Exception as e:
-                app.logger.error("Failed to prepare combatant: %s", str(e))
-                return make_response(jsonify({'error': str(e)}), 500)
-            return make_response(jsonify({'status': 'combatant prepared', 'combatants': combatants}), 200)
-
-        except Exception as e:
-            app.logger.error("Failed to prepare combatants: %s", str(e))
-            return make_response(jsonify({'error': str(e)}), 500)
-
-
-    ############################################################
-    #
-    # Leaderboard
-    #
-    ############################################################
-
-
-    @app.route('/api/leaderboard', methods=['GET'])
-    def get_leaderboard() -> Response:
-        """
-        Route to get the leaderboard of meals sorted by wins, battles, or win percentage.
-
-        Query Parameters:
-            - sort (str): The field to sort by ('wins', 'battles', or 'win_pct'). Default is 'wins'.
-
-        Returns:
-            JSON response with a sorted leaderboard of meals.
-        Raises:
-            500 error if there is an issue generating the leaderboard.
-        """
-        try:
-            sort_by = request.args.get('sort', 'wins')  # Default sort by wins
-            app.logger.info("Generating leaderboard sorted by %s", sort_by)
-
-            leaderboard_data = Meals.get_leaderboard(sort_by)
-
-            return make_response(jsonify({'status': 'success', 'leaderboard': leaderboard_data}), 200)
-        except Exception as e:
-            app.logger.error(f"Error generating leaderboard: {e}")
-            return make_response(jsonify({'error': str(e)}), 500)
+        # Placeholder for price update logic
+        # Replace this with logic to fetch and update prices from Alpha Vantage API
+        return jsonify({'status': 'success', 'message': 'Prices updated (mocked).'}), 200
 
     return app
 
