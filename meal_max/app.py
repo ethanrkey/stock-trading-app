@@ -8,6 +8,7 @@ from meal_max.db import db
 from meal_max.models.battle_model import BattleModel
 from meal_max.models.kitchen_model import Stock
 from meal_max.models.mongo_session_model import login_user, logout_user
+from meal_max.clients.alpha_vantage_client import get_stock_price, get_historical_data, update_all_stock_prices
 from meal_max.models.user_model import Users
 
 # Load environment variables from .env file
@@ -343,29 +344,67 @@ def create_app(config_class=ProductionConfig):
     @app.route('/api/fetch-stock/<string:symbol>', methods=['GET'])
     def fetch_stock(symbol):
         """
-        Fetch live stock data from the Alpha Vantage API.
+        Fetch the latest stock price for a given symbol.
 
         Path Parameter:
-            - symbol (str): The ticker symbol of the stock.
+            symbol (str): The ticker symbol of the stock (e.g., "AAPL").
 
         Returns:
-            JSON response with live stock data.
+            JSON: 
+                - status (str): "success" or "error".
+                - data (dict, optional): Contains stock details on success.
+                - message (str, optional): Error message on failure.
         """
-        # Placeholder for API integration
-        # Replace this with a call to Alpha Vantage API
-        return jsonify({'status': 'success', 'data': f'Live data for {symbol} (mocked).'}), 200
+        try:
+            stock_data = get_stock_price(symbol)
+            return jsonify({'status': 'success', 'data': stock_data}), 200
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 400
+
+
+    @app.route('/api/historical-stock/<string:symbol>', methods=['GET'])
+    def historical_stock(symbol):
+        """
+        Fetch historical stock price data for a given symbol.
+
+        Path Parameter:
+            symbol (str): The ticker symbol of the stock (e.g., "AAPL").
+
+        Query Parameters:
+            interval (str): Time interval for data points (default: "1d").
+            output_size (str): Size of the data set ("compact" or "full", default: "compact").
+
+        Returns:
+            JSON: 
+                - status (str): "success" or "error".
+                - data (dict, optional): Contains historical stock data on success.
+                - message (str, optional): Error message on failure.
+        """
+        interval = request.args.get('interval', '1d')
+        output_size = request.args.get('output_size', 'compact')
+        try:
+            historical_data = get_historical_data(symbol, interval, output_size)
+            return jsonify({'status': 'success', 'data': historical_data}), 200
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 400
+
 
     @app.route('/api/update-prices', methods=['POST'])
     def update_prices():
         """
-        Update the current prices for all stocks in the database.
+        Updates the current prices for all stocks in the database.
 
         Returns:
-            JSON response indicating success or failure.
+            JSON: 
+                - status (str): "success" or "error".
+                - result (dict, optional): Summary of updated stocks on success.
+                - message (str, optional): Error message on failure.
         """
-        # Placeholder for price update logic
-        # Replace this with logic to fetch and update prices from Alpha Vantage API
-        return jsonify({'status': 'success', 'message': 'Prices updated (mocked).'}), 200
+        try:
+            result = update_all_stock_prices()
+            return jsonify({'status': 'success', 'result': result}), 200
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 400
 
     return app
 
