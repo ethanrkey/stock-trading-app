@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from meal_max.models.battle_model import BattleModel
+from stock_trading.models.battle_model import BattleModel
 
 
 @pytest.fixture

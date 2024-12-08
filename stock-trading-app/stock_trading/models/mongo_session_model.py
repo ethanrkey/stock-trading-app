@@ -1,8 +1,8 @@
 import logging
 from typing import Any, List
 
-from meal_max.clients.mongo_client import sessions_collection
-from meal_max.utils.logger import configure_logger
+from stock_trading.clients.mongo_client import sessions_collection
+from stock_trading.utils.logger import configure_logger
 
 
 logger = logging.getLogger(__name__)

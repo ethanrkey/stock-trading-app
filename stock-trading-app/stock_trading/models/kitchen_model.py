@@ -5,9 +5,9 @@ from typing import Any, List
 from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
 
-from meal_max.clients.redis_client import redis_client
-from meal_max.db import db
-from meal_max.utils.logger import configure_logger
+from stock_trading.clients.redis_client import redis_client
+from stock_trading.db import db
+from stock_trading.utils.logger import configure_logger
 
 
 logger = logging.getLogger(__name__)

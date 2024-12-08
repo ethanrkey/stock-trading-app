@@ -2,7 +2,7 @@ import pytest
 
 from app import create_app
 from config import TestConfig
-from meal_max.db import db
+from stock_trading.db import db
 
 @pytest.fixture
 def app():

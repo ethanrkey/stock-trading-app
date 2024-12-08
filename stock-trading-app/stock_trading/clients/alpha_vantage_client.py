@@ -1,7 +1,7 @@
 import requests
 import os
 
-from meal_max.models.kitchen_model import Stock
+from stock_trading.models.kitchen_model import Stock
 
 ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
 BASE_URL = "https://www.alphavantage.co/query"

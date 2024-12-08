@@ -1,6 +1,6 @@
 import pytest
 
-from meal_max.models.mongo_session_model import login_user, logout_user
+from stock_trading.models.mongo_session_model import login_user, logout_user
 
 @pytest.fixture
 def sample_user_id():

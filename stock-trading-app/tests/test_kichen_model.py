@@ -2,7 +2,7 @@ from dataclasses import asdict
 
 import pytest
 
-from meal_max.models.kitchen_model import Meals
+from stock_trading.models.kitchen_model import Meals
 
 @pytest.fixture
 def mock_redis_client(mocker):

@@ -3,9 +3,9 @@ import os
 import time
 from typing import Any, List
 
-from meal_max.models.kitchen_model import Meals
-from meal_max.utils.logger import configure_logger
-from meal_max.utils.random_utils import get_random
+from stock_trading.models.kitchen_model import Meals
+from stock_trading.utils.logger import configure_logger
+from stock_trading.utils.random_utils import get_random
 
 
 logger = logging.getLogger(__name__)

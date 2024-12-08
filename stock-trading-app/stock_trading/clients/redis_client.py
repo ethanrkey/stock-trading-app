@@ -3,7 +3,7 @@ import os
 
 import redis
 
-from meal_max.utils.logger import configure_logger
+from stock_trading.utils.logger import configure_logger
 
 
 logger = logging.getLogger(__name__)
