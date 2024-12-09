@@ -1,10 +1,93 @@
 import requests
 import os
+from typing import Optional, Dict, Any 
+import logging 
 
 from stock_trading.models.kitchen_model import Stock
 
 ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
 BASE_URL = "https://www.alphavantage.co/query"
+
+def validate_stock_symbol(symbol: str) -> bool:
+    """
+    Validate if a stock symbol exists and is tradeable.
+    
+    Args:
+        symbol (str): The stock symbol to validate
+        
+    Returns:
+        bool: True if the symbol is valid, False otherwise
+    """
+    logger.info("Validating stock symbol: %s", symbol)
+    
+    try:
+        params = {
+            'function': 'GLOBAL_QUOTE',
+            'symbol': symbol,
+            'apikey': ALPHA_VANTAGE_API_KEY
+        }
+        
+        response = requests.get(BASE_URL, params=params)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        
+        data = response.json()
+        
+        # Check if we got valid data back
+        if "Global Quote" in data and data["Global Quote"]:
+            logger.info("Stock symbol %s is valid", symbol)
+            return True
+        else:
+            logger.warning("Invalid stock symbol: %s", symbol)
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        logger.error("Error validating stock symbol %s: %s", symbol, str(e))
+        return False
+
+def get_stock_info(symbol: str) -> Optional[Dict[str, Any]]:
+    """
+    Get detailed information about a stock.
+    
+    Args:
+        symbol (str): The stock symbol
+        
+    Returns:
+        Optional[Dict[str, Any]]: Dictionary containing stock information or None if not found
+    """
+    logger.info("Getting information for stock: %s", symbol)
+    
+    try:
+        params = {
+            'function': 'OVERVIEW',
+            'symbol': symbol,
+            'apikey': ALPHA_VANTAGE_API_KEY
+        }
+        
+        response = requests.get(BASE_URL, params=params)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data and "Symbol" in data:
+            logger.info("Successfully retrieved information for %s", symbol)
+            return {
+                'symbol': data['Symbol'],
+                'name': data.get('Name'),
+                'description': data.get('Description'),
+                'exchange': data.get('Exchange'),
+                'sector': data.get('Sector'),
+                'industry': data.get('Industry'),
+                'market_cap': data.get('MarketCapitalization'),
+                'pe_ratio': data.get('PERatio'),
+                'dividend_yield': data.get('DividendYield')
+            }
+        else:
+            logger.warning("No information found for symbol %s", symbol)
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        logger.error("Error getting stock information for %s: %s", symbol, str(e))
+        return None
 
 def get_stock_price(symbol):
     """

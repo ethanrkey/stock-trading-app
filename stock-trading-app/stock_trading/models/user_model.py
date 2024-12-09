@@ -1,24 +1,27 @@
 import hashlib
 import logging
 import os
-
+from flask_login import UserMixin 
 from sqlalchemy.exc import IntegrityError
 
 from stock_trading.db import db
 from stock_trading.utils.logger import configure_logger
-
+from stock_trading.models.mongo_session_model import initialize_user_portfolio
 
 logger = logging.getLogger(__name__)
 configure_logger(logger)
 
 
-class Users(db.Model):
+class Users(UserMixin, db.Model):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     salt = db.Column(db.String(32), nullable=False)  # 16-byte salt in hex
     password = db.Column(db.String(64), nullable=False)  # SHA-256 hash in hex
+
+    def get_id(self):
+        return str(self.id)
 
     @classmethod
     def _generate_hashed_password(cls, password: str) -> tuple[str, str]:
@@ -52,6 +55,7 @@ class Users(db.Model):
         try:
             db.session.add(new_user)
             db.session.commit()
+            initialize_user_portfolio(new_user.id)
             logger.info("User successfully added to the database: %s", username)
         except IntegrityError:
             db.session.rollback()
