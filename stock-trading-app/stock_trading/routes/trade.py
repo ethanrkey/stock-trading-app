@@ -3,7 +3,9 @@ from flask_login import login_required, current_user
 import logging
 from stock_trading.models.mongo_session_model import get_user_portfolio, update_portfolio_holding, buy_stock
 from stock_trading.clients.alpha_vantage_client import get_stock_price, get_stock_info
+
 from stock_trading.utils.logger import configure_logger
+
 
 
 # Create the Blueprint first

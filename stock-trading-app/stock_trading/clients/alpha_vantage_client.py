@@ -6,11 +6,12 @@ import logging
 from stock_trading.models.kitchen_model import Stock
 from stock_trading.utils.logger import configure_logger
 
-
 logger = logging.getLogger(__name__)
 configure_logger(logger)
 
+
 ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY', '84XY04891WLI04CZ')
+
 BASE_URL = "https://www.alphavantage.co/query"
 
 def validate_stock_symbol(symbol: str) -> bool:
