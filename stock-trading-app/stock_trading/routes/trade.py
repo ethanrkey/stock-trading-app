@@ -2,6 +2,11 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from stock_trading.models.mongo_session_model import get_user_portfolio
 from stock_trading.clients.alpha_vantage_client import get_stock_price, get_stock_info
+import logging
+from stock_trading.utils.logger import configure_logger
+
+logger = logging.getLogger(__name__)
+configure_logger(logger)
 
 # Create the Blueprint first
 trade = Blueprint('trade', __name__)

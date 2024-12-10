@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # Define the base URL for the Flask API
-BASE_URL="http://localhost:5000/api"
-
+BASE_URL="http://127.0.0.1:5000"
 # Flag to control whether to echo JSON output
 ECHO_JSON=false
 
@@ -25,7 +24,7 @@ done
 # Function to check the health of the service
 check_health() {
   echo "Checking health status..."
-  curl -s -X GET "$BASE_URL/health" | grep -q '"status": "healthy"'
+  curl -s -X GET "$BASE_URL/api/health" | grep -q '"status": "healthy"'
   if [ $? -eq 0 ]; then
     echo "Service is healthy."
   else

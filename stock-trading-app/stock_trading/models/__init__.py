@@ -1,3 +1,4 @@
+from flask import Flask
 from stock_trading.routes import portfolio
 
 def create_app():
