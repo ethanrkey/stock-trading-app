@@ -2,62 +2,89 @@
 
 # Define the base URL for the Flask API
 BASE_URL="http://127.0.0.1:5000"
+
 # Flag to control whether to echo JSON output
 ECHO_JSON=false
 
-# Parse command-line arguments
+#test user credentials
+TEST_USERNAME="testuser_smoke"
+TEST_PASSWORD="password123"
+
+#test stock details
+TEST_STOCK_SYMBOL="TEST"
+TEST_STOCK_NAME="Test Company"
+TEST_STOCK_QUANTITY=10
+TEST_STOCK_BUY_PRICE=100.0
+
+#function to print usage
+usage() {
+  echo "Usage: $0 [--echo-json]"
+  exit 1
+}
+
+#parse command-line arguments
 while [ "$#" -gt 0 ]; do
   case $1 in
     --echo-json) ECHO_JSON=true ;;
-    *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    -h|--help) usage ;;
+    *) echo "Unknown parameter passed: $1"; usage ;;
   esac
   shift
 done
 
-
 ###############################################
 #
-# Health checks
+# Health Checks
 #
 ###############################################
 
-# Function to check the health of the service
+#function to check the health of the service
 check_health() {
   echo "Checking health status..."
-  curl -s -X GET "$BASE_URL/api/health" | grep -q '"status": "healthy"'
-  if [ $? -eq 0 ]; then
+  response=$(curl -s -X GET "$BASE_URL/api/health")
+  if echo "$response" | grep -q '"status": "healthy"'; then
     echo "Service is healthy."
   else
     echo "Health check failed."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
     exit 1
   fi
 }
 
-##############################################
+###############################################
 #
-# User management
+# User Management
 #
-##############################################
+###############################################
 
-# Function to create a user
+#function to create a user
 create_user() {
   echo "Creating a new user..."
-  curl -s -X POST "$BASE_URL/create-user" -H "Content-Type: application/json" \
-    -d '{"username":"testuser", "password":"password123"}' | grep -q '"status": "user added"'
-  if [ $? -eq 0 ]; then
+  response=$(curl -s -X POST "$BASE_URL/api/create-user" -H "Content-Type: application/json" \
+    -d "{\"username\":\"$TEST_USERNAME\", \"password\":\"$TEST_PASSWORD\"}")
+  
+  if echo "$response" | grep -q '"status": "user added"'; then
     echo "User created successfully."
   else
     echo "Failed to create user."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
     exit 1
   fi
 }
 
-# Function to log in a user
+#function to log in a user
 login_user() {
   echo "Logging in user..."
-  response=$(curl -s -X POST "$BASE_URL/login" -H "Content-Type: application/json" \
-    -d '{"username":"testuser", "password":"password123"}')
-  if echo "$response" | grep -q '"message": "User testuser logged in successfully."'; then
+  response=$(curl -s -X POST "$BASE_URL/api/login" -H "Content-Type: application/json" \
+    -d "{\"username\":\"$TEST_USERNAME\", \"password\":\"$TEST_PASSWORD\"}")
+  
+  if echo "$response" | grep -q "\"message\": \"User $TEST_USERNAME logged in successfully.\""; then
     echo "User logged in successfully."
     if [ "$ECHO_JSON" = true ]; then
       echo "Login Response JSON:"
@@ -66,19 +93,20 @@ login_user() {
   else
     echo "Failed to log in user."
     if [ "$ECHO_JSON" = true ]; then
-      echo "Error Response JSON:"
+      echo "Response:"
       echo "$response" | jq .
     fi
     exit 1
   fi
 }
 
-# Function to log out a user
+#function to log out a user
 logout_user() {
   echo "Logging out user..."
-  response=$(curl -s -X POST "$BASE_URL/logout" -H "Content-Type: application/json" \
-    -d '{"username":"testuser"}')
-  if echo "$response" | grep -q '"message": "User testuser logged out successfully."'; then
+  response=$(curl -s -X POST "$BASE_URL/api/logout" -H "Content-Type: application/json" \
+    -d "{\"username\":\"$TEST_USERNAME\"}")
+  
+  if echo "$response" | grep -q "\"message\": \"User $TEST_USERNAME logged out successfully.\""; then
     echo "User logged out successfully."
     if [ "$ECHO_JSON" = true ]; then
       echo "Logout Response JSON:"
@@ -87,217 +115,281 @@ logout_user() {
   else
     echo "Failed to log out user."
     if [ "$ECHO_JSON" = true ]; then
-      echo "Error Response JSON:"
+      echo "Response:"
       echo "$response" | jq .
     fi
     exit 1
   fi
 }
 
-##############################################
-#
-# Meals
-#
-##############################################
-
-# Function to add a meal (combatant)
-create_meal() {
-  echo "Adding a combatant..."
-  curl -s -X POST "$BASE_URL/create-meal" -H "Content-Type: application/json" \
-    -d '{"meal":"Spaghetti", "cuisine":"Italian", "price":12.5, "difficulty":"MED"}' | grep -q '"status": "combatant added"'
-  if [ $? -eq 0 ]; then
-    echo "Combatant added successfully."
+#function to delete a user
+delete_user() {
+  echo "Deleting user..."
+  response=$(curl -s -X DELETE "$BASE_URL/api/delete-user" -H "Content-Type: application/json" \
+    -d "{\"username\":\"$TEST_USERNAME\"}")
+  
+  if echo "$response" | grep -q '"status": "user deleted"'; then
+    echo "User deleted successfully."
   else
-    echo "Failed to add combatant."
+    echo "Failed to delete user."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
     exit 1
   fi
 }
 
-# Function to delete a meal by ID (1)
-delete_meal_by_id() {
-  echo "Deleting meal by ID (1)..."
-  response=$(curl -s -X DELETE "$BASE_URL/delete-meal/1")
-  if echo "$response" | grep -q '"status": "meal deleted"'; then
-    echo "Meal deleted successfully by ID (1)."
-  else
-    echo "Failed to delete meal by ID (1)."
-    exit 1
-  fi
-}
+###############################################
+#
+# Stock Management
+#
+###############################################
 
-# Function to get a meal by ID (1)
-get_meal_by_id() {
-  echo "Getting meal by ID (1)..."
-  response=$(curl -s -X GET "$BASE_URL/get-meal-by-id/1")
+#function to add a new stock
+add_stock() {
+  echo "Adding a new stock..."
+  response=$(curl -s -X POST "$BASE_URL/api/add-stock" -H "Content-Type: application/json" \
+    -d "{\"symbol\":\"$TEST_STOCK_SYMBOL\", \"name\":\"$TEST_STOCK_NAME\", \"quantity\":$TEST_STOCK_QUANTITY, \"buy_price\":$TEST_STOCK_BUY_PRICE}")
+  
   if echo "$response" | grep -q '"status": "success"'; then
-    echo "Meal retrieved successfully by ID (1)."
+    echo "Stock added successfully."
+  else
+    echo "Failed to add stock."
     if [ "$ECHO_JSON" = true ]; then
-      echo "Meal JSON (ID 1):"
+      echo "Response:"
       echo "$response" | jq .
     fi
-  else
-    echo "Failed to get meal by ID (1)."
     exit 1
   fi
 }
 
-# Function to get a meal by name
-get_meal_by_name() {
-  echo "Getting meal by name (Spaghetti)..."
-  response=$(curl -s -X GET "$BASE_URL/get-meal-by-name/Spaghetti")
+#function to update the stock details
+update_stock() {
+  echo "Updating the stock..."
+  #retrieve the stock ID first
+  stock_id=$(curl -s -X GET "$BASE_URL/api/get-stock/$TEST_STOCK_SYMBOL" | jq '.stock.id')
+  
+  if [ "$stock_id" == "null" ] || [ -z "$stock_id" ]; then
+    echo "Failed to retrieve stock ID for updating."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      curl -s -X GET "$BASE_URL/api/get-stock/$TEST_STOCK_SYMBOL" | jq .
+    fi
+    exit 1
+  fi
+  
+  #update fields (e.g., quantity and buy_price)
+  UPDATED_QUANTITY=20
+  UPDATED_BUY_PRICE=150.0
+  
+  response=$(curl -s -X PUT "$BASE_URL/api/update-stock/$stock_id" -H "Content-Type: application/json" \
+    -d "{\"quantity\":$UPDATED_QUANTITY, \"buy_price\":$UPDATED_BUY_PRICE}")
+  
   if echo "$response" | grep -q '"status": "success"'; then
-    echo "Meal retrieved successfully by name (Spaghetti)."
-    if [ "$ECHO_JSON" = true ]; then
-      echo "Meal JSON (Spaghetti):"
-      echo "$response" | jq .
-    fi
+    echo "Stock updated successfully."
   else
-    echo "Failed to get meal by name (Spaghetti)."
-    exit 1
-  fi
-}
-
-############################################
-#
-# Battle
-#
-############################################
-
-# Function to clear the combatants
-clear_combatants() {
-  echo "Clearing combatants..."
-  curl -s -X POST "$BASE_URL/clear-combatants" -H "Content-Type: application/json" | grep -q '"status": "combatants cleared"'
-  if [ $? -eq 0 ]; then
-    echo "Combatants cleared successfully."
-  else
-    echo "Failed to clear combatants."
-    exit 1
-  fi
-}
-
-# Function to get the current list of combatants
-get_combatants() {
-  echo "Getting the current list of combatants..."
-  response=$(curl -s -X GET "$BASE_URL/get-combatants")
-
-  # Check if the response contains combatants or an empty list
-  if echo "$response" | grep -q '"combatants"'; then
-    echo "Combatants retrieved successfully."
+    echo "Failed to update stock."
     if [ "$ECHO_JSON" = true ]; then
-      echo "Combatants JSON:"
-      echo "$response" | jq .
-    fi
-  else
-    echo "Failed to get combatants or no combatants found."
-    if [ "$ECHO_JSON" = true ]; then
-      echo "Error or empty response:"
+      echo "Response:"
       echo "$response" | jq .
     fi
     exit 1
   fi
 }
 
-# Function to prepare a combatant for battle
-prep_combatant() {
-  echo "Preparing combatant for battle..."
-  curl -s -X POST "$BASE_URL/prep-combatant" -H "Content-Type: application/json" \
-    -d '{"meal":"Spaghetti"}' | grep -q '"status": "combatant prepared"'
-  if [ $? -eq 0 ]; then
-    echo "Combatant prepared successfully."
-  else
-    echo "Failed to prepare combatant."
-    exit 1
-  fi
-}
-
-# Function to run a battle
-run_battle() {
-  echo "Running a battle..."
-  curl -s -X GET "$BASE_URL/battle" | grep -q '"status": "battle complete"'
-  if [ $? -eq 0 ]; then
-    echo "Battle completed successfully."
-  else
-    echo "Failed to complete battle."
-    exit 1
-  fi
-}
-
-######################################################
-#
-# Leaderboard
-#
-######################################################
-
-# Function to get the leaderboard sorted by wins
-get_leaderboard_wins() {
-  echo "Getting leaderboard sorted by wins..."
-  response=$(curl -s -X GET "$BASE_URL/leaderboard?sort=wins")
+#function to retrieve the stock information
+get_stock() {
+  echo "Retrieving the stock information..."
+  response=$(curl -s -X GET "$BASE_URL/api/get-stock/$TEST_STOCK_SYMBOL")
+  
   if echo "$response" | grep -q '"status": "success"'; then
-    echo "Leaderboard by wins retrieved successfully."
+    echo "Stock retrieved successfully."
     if [ "$ECHO_JSON" = true ]; then
-      echo "Leaderboard JSON (sorted by wins):"
+      echo "Stock Details:"
       echo "$response" | jq .
     fi
   else
-    echo "Failed to get leaderboard by wins."
+    echo "Failed to retrieve stock."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
     exit 1
   fi
 }
 
-# Function to get the leaderboard sorted by win percentage
-get_leaderboard_win_pct() {
-  echo "Getting leaderboard sorted by win percentage..."
-  response=$(curl -s -X GET "$BASE_URL/leaderboard?sort=win_pct")
+#function to delete the stock
+delete_stock() {
+  echo "Deleting the stock..."
+  #retrieve the stock id first
+  stock_id=$(curl -s -X GET "$BASE_URL/api/get-stock/$TEST_STOCK_SYMBOL" | jq '.stock.id')
+  
+  if [ "$stock_id" == "null" ] || [ -z "$stock_id" ]; then
+    echo "Failed to retrieve stock ID for deletion."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      curl -s -X GET "$BASE_URL/api/get-stock/$TEST_STOCK_SYMBOL" | jq .
+    fi
+    exit 1
+  fi
+  
+  response=$(curl -s -X DELETE "$BASE_URL/api/delete-stock/$stock_id")
+  
   if echo "$response" | grep -q '"status": "success"'; then
-    echo "Leaderboard by win percentage retrieved successfully."
+    echo "Stock deleted successfully."
+  else
+    echo "Failed to delete stock."
     if [ "$ECHO_JSON" = true ]; then
-      echo "Leaderboard JSON (sorted by win percentage):"
+      echo "Response:"
       echo "$response" | jq .
     fi
-  else
-    echo "Failed to get leaderboard by win percentage."
     exit 1
   fi
 }
 
-# Function to initialize the database
-init_db() {
-  echo "Initializing the database..."
-  response=$(curl -s -X POST "$BASE_URL/init-db")
+###############################################
+#
+# Portfolio Management
+#
+###############################################
+
+#function to retrieve the portfolio details
+get_portfolio() {
+  echo "Retrieving portfolio details..."
+  response=$(curl -s -X GET "$BASE_URL/api/portfolio")
+  
   if echo "$response" | grep -q '"status": "success"'; then
-    echo "Database initialized successfully."
+    echo "Portfolio retrieved successfully."
     if [ "$ECHO_JSON" = true ]; then
-      echo "Initialization Response JSON:"
+      echo "Portfolio Details:"
       echo "$response" | jq .
     fi
   else
-    echo "Failed to initialize the database."
+    echo "Failed to retrieve portfolio."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
     exit 1
   fi
 }
 
+#function to retrieve the portfolio leaderboard
+get_leaderboard() {
+  echo "Retrieving portfolio leaderboard..."
+  #sort by value
+  response=$(curl -s -X GET "$BASE_URL/api/portfolio-leaderboard?sort_by=value")
+  
+  if echo "$response" | grep -q '"status": "success"'; then
+    echo "Portfolio leaderboard retrieved successfully."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Leaderboard:"
+      echo "$response" | jq .
+    fi
+  else
+    echo "Failed to retrieve portfolio leaderboard."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
+    exit 1
+  fi
+}
 
+###############################################
+#
+# Alpha Vantage API Integration
+#
+###############################################
 
-# Run all the steps in order
+#function to fetch the latest stock price
+fetch_stock() {
+  echo "Fetching the latest stock price..."
+  response=$(curl -s -X GET "$BASE_URL/api/fetch-stock/$TEST_STOCK_SYMBOL")
+  
+  if echo "$response" | grep -q '"status": "success"'; then
+    echo "Latest stock price fetched successfully."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Stock Price Data:"
+      echo "$response" | jq .
+    fi
+  else
+    echo "Failed to fetch latest stock price."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
+    exit 1
+  fi
+}
+
+#function to fetch historical stock data
+historical_stock() {
+  echo "Fetching historical stock data..."
+  #example
+  INTERVAL="1d"
+  OUTPUT_SIZE="compact"
+  
+  response=$(curl -s -X GET "$BASE_URL/api/historical-stock/$TEST_STOCK_SYMBOL?interval=$INTERVAL&output_size=$OUTPUT_SIZE")
+  
+  if echo "$response" | grep -q '"status": "success"'; then
+    echo "Historical stock data fetched successfully."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Historical Data:"
+      echo "$response" | jq .
+    fi
+  else
+    echo "Failed to fetch historical stock data."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
+    exit 1
+  fi
+}
+
+#function to update all stock prices
+update_prices() {
+  echo "Updating all stock prices..."
+  response=$(curl -s -X POST "$BASE_URL/api/update-prices")
+  
+  if echo "$response" | grep -q '"status": "success"'; then
+    echo "All stock prices updated successfully."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Update Prices Result:"
+      echo "$response" | jq .
+    fi
+  else
+    echo "Failed to update stock prices."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
+    exit 1
+  fi
+}
+
+###############################################
+#
+# Run All Tests in Sequence
+#
+###############################################
+
+# Execute tests
 check_health
-init_db
 create_user
 login_user
-create_meal
-clear_combatants
-prep_combatant
-prep_combatant
-get_combatants
-run_battle
-prep_combatant
-run_battle
-prep_combatant
-run_battle
-get_leaderboard_wins
-get_leaderboard_win_pct
+add_stock
+update_stock
+get_stock
+get_portfolio
+get_leaderboard
+fetch_stock
+historical_stock
+update_prices
+delete_stock
 logout_user
-get_meal_by_name
-get_meal_by_id
-delete_meal_by_id
+delete_user
 
-echo "All tests passed successfully!"
+echo "All smoke tests passed successfully!"
