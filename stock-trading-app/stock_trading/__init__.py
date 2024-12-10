@@ -34,9 +34,11 @@ def create_app():
     from stock_trading.routes.portfolio import portfolio
     from stock_trading.routes.auth import auth 
     from stock_trading.routes.trade import trade
+    from stock_trading.routes.lookup import lookup
     app.register_blueprint(portfolio)
     app.register_blueprint(auth)
     app.register_blueprint(trade)
+    app.register_blueprint(lookup)
 
     # Create database tables
     with app.app_context():

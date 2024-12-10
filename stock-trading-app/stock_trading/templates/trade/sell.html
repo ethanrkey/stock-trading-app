@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Sell Stock</h2>
+                </div>
+                <div class="card-body">
+                    {% if portfolio.holdings %}
+                        <div class="alert alert-info mb-4">
+                            <h5>Your Current Holdings</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Symbol</th>
+                                            <th>Shares</th>
+                                            <th>Current Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for holding in portfolio.holdings %}
+                                        <tr>
+                                            <td>{{ holding.symbol }}</td>
+                                            <td>{{ holding.shares }}</td>
+                                            <td>${{ "%.2f"|format(holding.current_price) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label for="symbol" class="form-label">Stock Symbol</label>
+                                <select class="form-select" id="symbol" name="symbol" required>
+                                    <option value="">Select a stock</option>
+                                    {% for holding in portfolio.holdings %}
+                                    <option value="{{ holding.symbol }}">
+                                        {{ holding.symbol }} ({{ holding.shares }} shares)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="shares" class="form-label">Number of Shares</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="shares" 
+                                       name="shares" 
+                                       min="1" 
+                                       step="1" 
+                                       required>
+                                <small class="form-text text-muted">Enter the number of shares you want to sell</small>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Preview Sale</button>
+                            <a href="{{ url_for('portfolio.view_portfolio') }}" class="btn btn-secondary">Cancel</a>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <p class="mb-0">You don't have any stocks to sell.</p>
+                        </div>
+                        <a href="{{ url_for('portfolio.view_portfolio') }}" class="btn btn-secondary">Back to Portfolio</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
