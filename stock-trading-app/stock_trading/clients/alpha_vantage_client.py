@@ -3,7 +3,7 @@ import os
 from typing import Optional, Dict, Any 
 import logging 
 
-from stock_trading.models.kitchen_model import Stock
+from stock_trading.models.stock_model import Stock
 from stock_trading.utils.logger import configure_logger
 
 logger = logging.getLogger(__name__)
