@@ -5,7 +5,6 @@ from werkzeug.exceptions import BadRequest, Unauthorized
 
 from config import ProductionConfig
 from stock_trading.db import db
-from stock_trading.models.battle_model import BattleModel
 from stock_trading.models.kitchen_model import Stock
 from stock_trading.models.mongo_session_model import login_user, logout_user
 from stock_trading.clients.alpha_vantage_client import get_stock_price, get_historical_data, update_all_stock_prices
@@ -21,8 +20,6 @@ def create_app(config_class=ProductionConfig):
     db.init_app(app)  # Initialize db with app
     with app.app_context():
         db.create_all()  # Recreate all tables
-
-    battle_model = BattleModel()
 
     ####################################################
     #
@@ -155,7 +152,7 @@ def create_app(config_class=ProductionConfig):
             user_id = Users.get_id_by_username(username)
 
             # Load user's combatants into the battle model
-            login_user(user_id, battle_model)
+            login_user(user_id)
 
             app.logger.info("User %s logged in successfully.", username)
             return jsonify({"message": f"User {username} logged in successfully."}), 200
@@ -194,7 +191,7 @@ def create_app(config_class=ProductionConfig):
             user_id = Users.get_id_by_username(username)
 
             # Save user's combatants and clear the battle model
-            logout_user(user_id, battle_model)
+            logout_user(user_id)
 
             app.logger.info("User %s logged out successfully.", username)
             return jsonify({"message": f"User {username} logged out successfully."}), 200
@@ -408,7 +405,3 @@ def create_app(config_class=ProductionConfig):
 
     return app
 
-
-if __name__ == '__main__':
-    app = create_app()
-    app.run(debug=True, host='0.0.0.0', port=5000)
