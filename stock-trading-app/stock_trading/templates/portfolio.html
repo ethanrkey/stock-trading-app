@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>My Portfolio</h2>
+    
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% else %}
+        <!-- Portfolio Summary -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h5>Total Portfolio Value</h5>
+                        <h3>${{ "%.2f"|format(portfolio.total_portfolio_value) }}</h3>
+                    </div>
+                    <div class="col-md-4">
+                        <h5>Stock Holdings Value</h5>
+                        <h3>${{ "%.2f"|format(portfolio.total_stock_value) }}</h3>
+                    </div>
+                    <div class="col-md-4">
+                        <h5>Cash Balance</h5>
+                        <h3>${{ "%.2f"|format(portfolio.cash_balance) }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Holdings -->
+        <div class="card">
+            <div class="card-header">
+                <h4>Stock Holdings</h4>
+            </div>
+            <div class="card-body">
+                {% if portfolio.holdings %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Shares</th>
+                                    <th>Current Price</th>
+                                    <th>Total Value</th>
+                                    <th>Avg Purchase Price</th>
+                                    <th>Gain/Loss</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holding in portfolio.holdings %}
+                                <tr>
+                                    <td>{{ holding.symbol }}</td>
+                                    <td>{{ holding.shares }}</td>
+                                    <td>${{ "%.2f"|format(holding.current_price) }}</td>
+                                    <td>${{ "%.2f"|format(holding.total_value) }}</td>
+                                    <td>${{ "%.2f"|format(holding.avg_purchase_price) }}</td>
+                                    <td class="{{ 'text-success' if holding.gain_loss > 0 else 'text-danger' }}">
+                                        ${{ "%.2f"|format(holding.gain_loss) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <p class="mb-0">You don't have any stock holdings yet. Start trading to build your portfolio!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-4">
+            <a href="{{ url_for('trade.buy_stock_route') }}" class="btn btn-primary me-2">Buy Stocks</a>
+            <a href="{{ url_for('trade.sell_stock_route') }}" class="btn btn-secondary">Sell Stocks</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
