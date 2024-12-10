@@ -5,7 +5,7 @@ from werkzeug.exceptions import BadRequest, Unauthorized
 
 from config import ProductionConfig
 from stock_trading.db import db
-from stock_trading.models.kitchen_model import Stock
+from stock_trading.models.stock_model import Stock
 from stock_trading.models.mongo_session_model import login_user, logout_user
 from stock_trading.clients.alpha_vantage_client import get_stock_price, get_historical_data, update_all_stock_prices
 from stock_trading.models.user_model import Users
