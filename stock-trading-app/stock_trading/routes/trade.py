@@ -1,9 +1,15 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
-from stock_trading.models.mongo_session_model import get_user_portfolio
+import logging
+from stock_trading.models.mongo_session_model import get_user_portfolio, update_portfolio_holding, buy_stock
 from stock_trading.clients.alpha_vantage_client import get_stock_price, get_stock_info
+from stock_trading.utils.logger import configure_logger
+
 
 # Create the Blueprint first
+logger = logging.getLogger(__name__)
+configure_logger(logger)
+
 trade = Blueprint('trade', __name__)
 
 @trade.route('/buy', methods=['GET', 'POST'])
@@ -44,6 +50,7 @@ def buy_stock_route():
             
         except ValueError as e:
             flash(str(e))
+            logger.error("ValueError in buy_stock_route: %s", str(e))
         except Exception as e:
             flash('An error occurred while processing your request.')
             logger.error("Error in buy_stock_route: %s", str(e))
@@ -52,7 +59,7 @@ def buy_stock_route():
     portfolio = get_user_portfolio(current_user.id)
     return render_template('trade/buy.html', cash_balance=portfolio['cash_balance'])
 
-    
+
 @trade.route('/sell', methods=['GET', 'POST'])
 @login_required
 def sell_stock_route():
@@ -99,3 +106,48 @@ def sell_stock_route():
     portfolio = get_user_portfolio(current_user.id)
     return render_template('trade/sell.html', portfolio=portfolio)
 
+@trade.route('/execute-buy', methods=['POST'])
+@login_required
+def execute_buy():
+    try:
+        symbol = request.form.get('symbol', '').upper()
+        shares = int(request.form.get('shares'))
+        price = float(request.form.get('price'))
+        
+        # Execute the purchase
+        buy_stock(current_user.id, symbol, shares, price)
+        
+        flash(f'Successfully purchased {shares} shares of {symbol} at ${price:.2f} per share.')
+        return redirect(url_for('portfolio.view_portfolio'))
+        
+    except ValueError as e:
+        flash(str(e))
+        logger.error("ValueError in execute_buy: %s", str(e))
+    except Exception as e:
+        flash('An error occurred while processing your purchase.')
+        logger.error("Error in execute_buy: %s", str(e))
+    
+    return redirect(url_for('trade.buy_stock_route'))
+
+@trade.route('/execute-sell', methods=['POST'])
+@login_required
+def execute_sell():
+    try:
+        symbol = request.form.get('symbol', '').upper()
+        shares = int(request.form.get('shares'))
+        price = float(request.form.get('price'))
+        
+        # Execute the sale using update_portfolio_holding with negative shares
+        update_portfolio_holding(current_user.id, symbol, -shares, price)
+        
+        flash(f'Successfully sold {shares} shares of {symbol} at ${price:.2f} per share.')
+        return redirect(url_for('portfolio.view_portfolio'))
+        
+    except ValueError as e:
+        flash(str(e))
+        logger.error("ValueError in execute_sell: %s", str(e))
+    except Exception as e:
+        flash('An error occurred while processing your sale.')
+        logger.error("Error in execute_sell: %s", str(e))
+    
+    return redirect(url_for('trade.sell_stock_route'))

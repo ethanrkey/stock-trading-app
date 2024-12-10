@@ -4,8 +4,13 @@ from typing import Optional, Dict, Any
 import logging 
 
 from stock_trading.models.kitchen_model import Stock
+from stock_trading.utils.logger import configure_logger
 
-ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
+
+logger = logging.getLogger(__name__)
+configure_logger(logger)
+
+ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY', '84XY04891WLI04CZ')
 BASE_URL = "https://www.alphavantage.co/query"
 
 def validate_stock_symbol(symbol: str) -> bool:
@@ -68,26 +73,29 @@ def get_stock_info(symbol: str) -> Optional[Dict[str, Any]]:
         
         data = response.json()
         
-        if data and "Symbol" in data:
-            logger.info("Successfully retrieved information for %s", symbol)
-            return {
-                'symbol': data['Symbol'],
-                'name': data.get('Name'),
-                'description': data.get('Description'),
-                'exchange': data.get('Exchange'),
-                'sector': data.get('Sector'),
-                'industry': data.get('Industry'),
-                'market_cap': data.get('MarketCapitalization'),
-                'pe_ratio': data.get('PERatio'),
-                'dividend_yield': data.get('DividendYield')
-            }
-        else:
-            logger.warning("No information found for symbol %s", symbol)
-            return None
+        logger.debug("API Response for %s info: %s", symbol, data)  # Debug log
+        
+        # Always return a dictionary with fallback values for missing data
+        return {
+            'symbol': data.get('Symbol', symbol),
+            'name': data.get('Name', symbol),
+            'description': data.get('Description', 'No description available'),
+            'exchange': data.get('Exchange', 'Unknown'),
+            'sector': data.get('Sector', 'Unknown'),
+            'industry': data.get('Industry', 'Unknown')
+        }
             
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         logger.error("Error getting stock information for %s: %s", symbol, str(e))
-        return None
+        # Return fallback data
+        return {
+            'symbol': symbol,
+            'name': symbol,
+            'description': 'Information temporarily unavailable',
+            'exchange': 'Unknown',
+            'sector': 'Unknown',
+            'industry': 'Unknown'
+        }
 
 def get_stock_price(symbol):
     """
@@ -97,14 +105,48 @@ def get_stock_price(symbol):
     Returns:
         dict: Stock price data from Alpha Vantage.
     """
-    params = {
-        "function": "GLOBAL_QUOTE",
-        "symbol": symbol,
-        "apikey": ALPHA_VANTAGE_API_KEY
-    }
-    response = requests.get(BASE_URL, params=params)
-    response.raise_for_status()
-    return response.json()["Global Quote"]
+    try:
+        params = {
+            'function': 'GLOBAL_QUOTE',
+            'symbol': symbol,
+            'apikey': ALPHA_VANTAGE_API_KEY
+        }
+        
+        response = requests.get(BASE_URL, params=params)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        logger.debug("API Response for %s: %s", symbol, data)  # Debug log
+        
+        if "Global Quote" not in data:
+            logger.error("Missing 'Global Quote' in response: %s", data)
+            raise ValueError("Invalid API response format")
+            
+        quote = data["Global Quote"]
+        if not quote:
+            logger.error("Empty quote data for symbol %s", symbol)
+            raise ValueError("No quote data available")
+            
+        price = quote.get("05. price")
+        if not price:
+            logger.error("No price found in quote data: %s", quote)
+            raise ValueError("Price not found in quote data")
+            
+        price_float = float(price)
+        logger.info("Successfully got price for %s: $%.2f", symbol, price_float)
+        return price_float
+            
+    except requests.exceptions.RequestException as e:
+        logger.error("Network error getting price for %s: %s", symbol, str(e))
+        raise ValueError(f"Network error while fetching price")
+    except ValueError as e:
+        logger.error("Error getting price for %s: %s", symbol, str(e))
+        raise ValueError(str(e))
+    except Exception as e:
+        logger.error("Unexpected error getting price for %s: %s", symbol, str(e))
+        raise ValueError(f"Unexpected error while fetching price")
+
 
 def get_historical_data(symbol, interval="1d", output_size="compact"):
     """
