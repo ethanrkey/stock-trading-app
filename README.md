@@ -285,3 +285,5 @@ Route: /execute-sell
       "total_value": 1502.50
   }
 
+Issue: 
+- Tests(unit tests and smoketests) should work by theory and structure but flask login manager can't be imported for some reason even though it is within requirements thus can not fully test all tests.
