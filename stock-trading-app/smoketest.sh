@@ -63,7 +63,7 @@ check_health() {
 #function to create a user
 create_user() {
   echo "Creating a new user..."
-  response=$(curl -s -X POST "$BASE_URL/api/create-user" -H "Content-Type: application/json" \
+  response=$(curl -s -X POST "$BASE_URL/api/register" -H "Content-Type: application/json" \
     -d "{\"username\":\"$TEST_USERNAME\", \"password\":\"$TEST_PASSWORD\"}")
   
   if echo "$response" | grep -q '"status": "user added"'; then
@@ -137,6 +137,58 @@ delete_user() {
       echo "$response" | jq .
     fi
     exit 1
+  fi
+}
+
+###############################################
+#
+# Stock Lookup
+#
+###############################################
+
+#function to test stock lookup
+test_stock_lookup() {
+  echo "Testing stock lookup..."
+  response=$(curl -s -X POST "$BASE_URL/lookup" -H "Content-Type: application/json" \
+    -d "symbol=$TEST_STOCK_SYMBOL")
+  
+  if [ $? -eq 0 ]; then
+    echo "Stock lookup successful."
+  else
+    echo "Failed to lookup stock."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
+    exit 1
+  fi
+}
+
+#function to test stock lookup with invalid symbol
+test_stock_lookup_invalid_symbol() {
+  echo "Testing stock lookup with invalid symbol..."
+  response=$(curl -s -X POST "$BASE_URL/lookup" -H "Content-Type: application/json" \
+    -d "symbol=INVALID_SYMBOL")
+  
+  if [ $? -eq 0 ]; then
+    echo "Failed to return error for invalid symbol."
+    exit 1
+  else
+    echo "Successfully returned error for invalid symbol."
+  fi
+}
+
+#function to test stock lookup with empty symbol
+test_stock_lookup_empty_symbol() {
+  echo "Testing stock lookup with empty symbol..."
+  response=$(curl -s -X POST "$BASE_URL/lookup" -H "Content-Type: application/json" \
+    -d "symbol=")
+  
+  if [ $? -eq 0 ]; then
+    echo "Failed to return error for empty symbol."
+    exit 1
+  else
+    echo "Successfully returned error for empty symbol."
   fi
 }
 
@@ -299,6 +351,84 @@ get_leaderboard() {
 
 ###############################################
 #
+# Trade
+#
+###############################################
+
+#function to test buying stock
+test_buy_stock() {
+  echo "Testing buying stock..."
+  response=$(curl -s -X POST "$BASE_URL/buy" -H "Authorization: Bearer $TEST_TOKEN" -H "Content-Type: application/json" \
+    -d "symbol=$TEST_STOCK_SYMBOL&shares=1")
+  
+  if [ $? -eq 0 ]; then
+    echo "Stock purchase successful."
+  else
+    echo "Failed to purchase stock."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
+    exit 1
+  fi
+}
+
+#function to test selling stock
+test_sell_stock() {
+  echo "Testing selling stock..."
+  response=$(curl -s -X POST "$BASE_URL/sell" -H "Authorization: Bearer $TEST_TOKEN" -H "Content-Type: application/json" \
+    -d "symbol=$TEST_STOCK_SYMBOL&shares=1")
+  
+  if [ $? -eq 0 ]; then
+    echo "Stock sale successful."
+  else
+    echo "Failed to sell stock."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
+    exit 1
+  fi
+}
+
+#function to test executing buy
+test_execute_buy() {
+  echo "Testing executing buy..."
+  response=$(curl -s -X POST "$BASE_URL/execute-buy" -H "Authorization: Bearer $TEST_TOKEN" -H "Content-Type: application/json" \
+    -d "symbol=$TEST_STOCK_SYMBOL&shares=1&price=100.00")
+  
+  if [ $? -eq 0 ]; then
+    echo "Buy execution successful."
+  else
+    echo "Failed to execute buy."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
+    exit 1
+  fi
+}
+
+#function to test executing sell
+test_execute_sell() {
+  echo "Testing executing sell..."
+  response=$(curl -s -X POST "$BASE_URL/execute-sell" -H "Authorization: Bearer $TEST_TOKEN" -H "Content-Type: application/json" \
+    -d "symbol=$TEST_STOCK_SYMBOL&shares=1&price=100.00")
+  
+  if [ $? -eq 0 ]; then
+    echo "Sell execution successful."
+  else
+    echo "Failed to execute sell."
+    if [ "$ECHO_JSON" = true ]; then
+      echo "Response:"
+      echo "$response" | jq .
+    fi
+    exit 1
+  fi
+}
+
+###############################################
+#
 # Alpha Vantage API Integration
 #
 ###############################################
@@ -380,12 +510,23 @@ update_prices() {
 check_health
 create_user
 login_user
+logout_user
+login_user
 add_stock
 update_stock
+test_stock_lookup
+test_stock_lookup_invalid_symbol
+test_stock_lookup_empty_symbol
 get_stock
 get_portfolio
+test_view_portfolio
+test_view_portfolio_without_login
 get_leaderboard
 fetch_stock
+test_buy_stock
+test_sell_stock
+test_execute_buy
+test_execute_sell
 historical_stock
 update_prices
 delete_stock
